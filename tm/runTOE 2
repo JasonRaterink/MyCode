@@ -1,0 +1,75 @@
+#!/bin/bash
+
+status=$1
+
+mypath="$(pwd)"
+tmpath="/home/server"
+
+pidfile="tmserver.pid"
+tmpfile="$tmpath/$pidfile"
+
+msg_usage="Example: runTOE [start|stop|status]"
+msg_start="TM Server is \e[36mrunnning\e[39m."
+msg_stop="TM Server is \e[31mstopped\e[39m."
+
+
+get_pid () {
+  if [ -f $tmpfile ]
+    then
+     tmpid="$(awk '/pid=[0-9]*/ {print $6}' $tmpath/$pidfile | tr -d [pid=])"
+    else
+      echo $msg_stop
+  fi
+}
+
+if [ "$#" -eq "0" -o "$#" -gt "1" ]
+ then
+  echo $msg_usage
+  exit 100
+ else
+  case $status in
+  	start ) 
+            cd $tmpath
+              if [ -f $tmpfile ]
+                then
+                  echo "TM Server is already runnning."
+                else
+      		        TrackmaniaServer /game_settings=MatchSettings/sample.txt /dedicated_cfg=dedicated_cfg.txt > $pidfile
+                  cd $mypath
+                  echo -e $msg_start
+              fi
+            ;;
+    stop ) 
+            get_pid
+            #echo "Killing process: $tmpid"
+        			if [ $(ps -p $tmpid ho pid | grep [^A-Za-z]) ]
+                then
+                  kill -9 $tmpid &> /dev/null
+                  echo -e $msg_stop
+                  rm -rf $tmpfile
+                  exit 0
+                 else
+                  kill -9 $tmpid &> $tmpath/error.log
+                  msg_error="$(awk -F "- " '{print $2}' $tmpath/error.log)"
+                  echo "There was an issue stopping the TM Server: $msg_error"
+                  exit 200
+              fi 
+            ;;
+    status ) 
+            echo "Checking TM Server status."
+              if [ -f $tmpfile ]
+                then
+                  echo -e $msg_start
+                else
+                  echo -e $msg_stop
+              fi
+            ;;
+  	* ) s
+            echo "Not a valid option." 
+		        echo $msg_usage
+            exit 300
+            ;;
+  esac
+fi
+
+exit 0
